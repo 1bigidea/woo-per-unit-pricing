@@ -69,7 +69,7 @@ class NonoPrintPricing {
 	 *	Functions below actually do the work
 	 */
 	function init(){
-
+		include_once('inc/class.shortcodes.php');
 	}
 
 	function admin_init(){
