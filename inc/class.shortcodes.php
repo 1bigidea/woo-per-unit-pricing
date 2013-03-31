@@ -53,6 +53,7 @@ class NonoPrintPricingShortcodes {
 		$rows = explode(',', $qty);
 
 		$output = '<table class="price-table">';
+		$output .= sprintf('<thead><th>%s</th><th>%s</th></thead>', __('Qty', 'nono-per-unit'), __('Price', 'nono-per-unit'));
 		foreach( $rows as $row ){
 			$row_text = '<tr><td class="price-table-qty">%d</td><td class="price-table-amount">%s</td></tr>';
 			$output .= sprintf($row_text, (int) $row, number_format(self::determine_price($row, $prices), 2, ',', '') );
