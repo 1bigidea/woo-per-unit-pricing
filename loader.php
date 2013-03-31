@@ -70,6 +70,21 @@ class NonoPrintPricing {
 	 */
 	function init(){
 		include_once('inc/class.shortcodes.php');
+		include_once('inc/class.printing_product.php');
+
+		add_filter('woocommerce_product_class', array($this, 'initiate_product'), 10, 4);
+	}
+	function initiate_product($classname, $product_type, $post_type, $product_id){
+kickout('initiate_product', $classname, $product_type, $post_type, $product_id, FILE_APPEND);
+
+		switch($classname){
+			case 'WC_Product_Variable':
+				return 'NONO_Product_Variable';
+			case 'WC_Product_Variation':
+				return 'NONO_Product_Variation';
+		}
+
+		return $classname;
 	}
 
 	function admin_init(){
