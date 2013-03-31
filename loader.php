@@ -69,6 +69,9 @@ class NonoPrintPricing {
 	 *	Functions below actually do the work
 	 */
 	function init(){
+		// load localization strings
+		load_plugin_textdomain('nono-per-unit', FALSE, plugin_basename(__FILE__).'/localization');
+
 		include_once('inc/class.shortcodes.php');
 		include_once('inc/class.printing_product.php');
 
