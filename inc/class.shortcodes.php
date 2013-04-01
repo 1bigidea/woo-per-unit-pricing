@@ -28,35 +28,21 @@ class NonoPrintPricingShortcodes {
 	function pricetable($atts){
 		global $woocommerce, $product;
 
-		extract( shortcode_atts(array('id' => 0, 'qty' => "50,100,250,500,1000"), $atts) );
+		extract( shortcode_atts(array('id' => 0, 'price_levels' => "50,100,250,500,1000"), $atts) );
 
 		if( 0 == $id ) {
-			$this_product = $product;
-		} else {
-			// get the product
+			$id = $product->id;
 		}
+		$rows = explode(',', $price_levels);
 
-		$variations = $product->get_available_variations();
-
-		foreach ($variations as $variation){
-			$v_product = new WC_Product_Variation($variation['variation_id']);
-
-			$method = $variation['attributes']['attribute_pa_printing-method'];
-			$prices[$method] = array(
-				'min'		=> get_post_meta($variation['variation_id'], '_nono_min_order_qty', true),
-				'price'		=> $v_product->price,
-				'sale_price'=> $v_product->sale_price,
-				'addl_pieces'	=> get_post_meta($variation['variation_id'], '_nono_price_per_piece', true),
-			);
-		}
-
-		$rows = explode(',', $qty);
+		$prices = get_post_meta($id, NonoPrintPricing::$pricing_table_key, true);
+		ksort($prices, SORT_NUMERIC);
 
 		$output = '<table class="price-table">';
 		$output .= sprintf('<thead><th>%s</th><th>%s</th></thead>', __('Qty', 'nono-per-unit'), __('Price', 'nono-per-unit'));
 		foreach( $rows as $row ){
 			$row_text = '<tr><td class="price-table-qty">%d</td><td class="price-table-amount">%s</td></tr>';
-			$output .= sprintf($row_text, (int) $row, number_format(self::determine_price($row, $prices), 2, ',', '') );
+			$output .= sprintf($row_text, (int) $row, number_format(self::determine_price($row, $prices), 2, ',', '.') );
 		}
 		$output .= '</table>';
 
@@ -65,11 +51,9 @@ class NonoPrintPricingShortcodes {
 
 	function determine_price($qty, $prices){
 		$pricing = 0;
-		foreach($prices as $method => $details ){
-			if( $qty >= $details['min'] ) {
-				$calc = ($details['min'] * $details['price']) + ( ($qty - $details['min']) * $details['addl_pieces'] );
-				if( $qty >= $details['min'] )
-					$pricing = $calc;
+		foreach($prices as $min => $details ){
+			if( $qty >= $min ) {
+				$pricing = (($min * $details['price']) + ( ($qty - $min) * $details['price'] ));
 			}
 		}
 		return $pricing;

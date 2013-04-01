@@ -1,0 +1,38 @@
+#woocommerce-product-data ul.product_data_tabs li.nono-pricing-option a{
+	padding: 5px 5px 5px 28px;
+	background: #f1f1f1 url(images/price-table.png) no-repeat 5px 5px;
+}
+
+#nono-pricing-table-edit {}
+	#nono-pricing-table-edit thead td {
+		font-weight: bold;
+	}
+
+	#nono-pricing-table-edit .value-field {
+		text-align: right;
+	}
+	#nono-pricing-table-edit .action-icon {
+		display: inline-block;
+		width:  1rem;
+		height: 1rem;
+		background-size: contain;
+		background-repeat: no-repeat;
+		margin-right: .25rem;
+	}
+	#nono-pricing-table-edit .add-row {
+		background-image: url(images/Add.png);
+	}
+	#nono-pricing-table-edit .delete-row {
+		background-image: url(images/Delete.png);
+	}
+
+// HiDPI optimisation
+@media
+(-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+	#woocommerce-product-data ul.product_data_tabs li.nono-pricing-option a {
+			background-image: url(images/price-table@2x.png) !important;
+			background-size: 17px 17px !important;
+		}
+	}
+}

@@ -33,6 +33,7 @@ class NonoPrintPricing {
 
 	var $min_order_key = '_nono_min_order_qty';
 	var $price_per_piece_key = '_nono_price_per_piece';
+	public static $pricing_table_key = '_nono_pricing_table';
 
 	function __construct() {
 
@@ -91,38 +92,86 @@ kickout('initiate_product', $classname, $product_type, $post_type, $product_id, 
 	}
 
 	function admin_init(){
-		add_action('woocommerce_product_after_variable_attributes', array($this, 'variation_admin'), 10, 3);
-		add_action('woocommerce_save_product_variation', array($this, 'save_pricing_info') );
+		add_action('woocommerce_product_write_panel_tabs', array($this, 'add_panel') );
+		add_action('woocommerce_product_write_panels', array($this, 'show_panel'));
+
+//		add_action('woocommerce_product_after_variable_attributes', array($this, 'variation_admin'), 10, 3);
+		add_action('woocommerce_process_product_meta_variable', array($this, 'save_pricing_info'), 10 ,1);
+
+		add_action('admin_enqueue_scripts', array($this, 'enqueue') );
+	}
+	function enqueue($hook){
+		global $post;
+
+		if( ! in_array($hook, array('post-new.php', 'post.php')) || 'product' != $post->post_type ) return;
+
+		wp_enqueue_script('nono-per-unit-js', plugins_url('/js/product-editor.js', __FILE__), array('jquery'));
+		wp_enqueue_style('nono-per-unit', plugins_url('woo-per-unit-pricing.css', __FILE__) );
 	}
 	/**
-	 *	Display fields for Min Qty and Price per Piece
+	 *	Insert Custom Write Panel in Woo Product Editor
 	 */
-	function variation_admin($loop, $variation_data, $variation){
-
-		$_min_qty = get_post_meta($variation->ID, $this->min_order_key, true);
-		$_per_piece_price = get_post_meta($variation->ID, $this->price_per_piece_key, true);
-?>
-		<tr>
-			<td>
-				<div>
-					<label><?php _e( 'Min Qty:', 'nono-print-pricing' ); ?> <a class="tips" data-tip="<?php _e( 'Minimum number of pieces at above price', 'nono-print-pricing' ); ?>" href="#">[?]</a></label>
-					<input type="number" size="5" name="variable_min_qty[<?php echo $loop; ?>]" value="<?php if ( isset( $_min_qty ) ) echo esc_attr( $_min_qty ); ?>" />
-				</div>
-			</td>
-			<td>
-				<div>
-					<label><?php echo __( 'Price per piece:', 'nono-print-pricing' ) . ' ('.get_woocommerce_currency_symbol().')'; ?></label>
-					<input type="number" size="5" name="variable_per_piece_price[<?php echo $loop; ?>]" value="<?php if ( isset( $_per_piece_price ) ) echo number_format( $_per_piece_price, 2, '.', '' ); ?>" step="any" min="0" placeholder="<?php _e( 'Per piece price (required)', 'nono-print-pricing' ); ?>" />
-				</div>
-			</td>
-		</tr>
-<?php
+	function add_panel(){
+		printf('<li class="nono-price-panel nono-pricing-option"><a href="#nono_price_panel">%s</a></li>', __( 'Price Tables', 'nono-per-unit' ) );
 	}
-	function save_pricing_info($variation_id){
+	function show_panel(){
+		global $post;
 
-		$variation_ids = $_POST['variable_post_id'];
+		$prices = get_post_meta($post->ID, self::$pricing_table_key, true);
+		if( empty($prices) ){
+			$prices = array(
+				'empty1' => array('price' => '', 'label' => 'Digital'),
+				'empty2' => array('price' => '', 'label' => 'Offset')
+			);
+		}
 
-		$index = array_search($variation_id, $_POST['variable_post_id']);
+		echo '<div id="nono_price_panel" class="panel woocommerce_options_panel">';
+
+			echo '<div class="options_group nono-price-table">';
+				echo '<table id="nono-pricing-table-edit">';
+					printf('<thead><td>%s</td><td>%s</td><td>%s</td><td>&nbsp;</td></thead>',
+						__('Min Qty', 'nono-per-unit'),
+						__('Price Each', 'nono-per-unit'),
+						__('Label', 'nono-per-unit')
+					);
+					foreach( $prices as $min => $price_row){
+						// handle the case where pricing hasn't been set yet (new products etc.)
+						if(is_nan($min)){
+							$min = 0;
+						}
+
+						echo '<tr>';
+						printf('<td><input type="text" class="value-field" value="%d" size="8"  name="nono_price_table_qty[]"></td>', $min);
+						printf('<td><input type="text" class="value-field" value="%s" size="10" name="nono_price_table_price[]"></td>', number_format ( $price_row['price'], 2, ',', '.') );
+						printf('<td><input type="text" value="%s" size="20" name="nono_price_table_label[]"></td>', $price_row['label']);
+						echo '<td><a href="#" class="add-row action-icon" /><a href="#" class="delete-row action-icon" /></td>';
+						echo '</tr>';
+					}
+				echo '</table>';
+			echo '</div>';
+		echo '</div>';
+	}
+
+
+	function save_pricing_info($post_id){
+
+		if( !isset($_POST) ||  !isset($_POST['nono_price_table_qty']) ) return; // Not a Variable product with pricing table
+		$pricing = array();
+		for( $i=0;$i<count($_POST['nono_price_table_qty']);$i++ ){
+			$index = absint(str_replace(',', '.', str_replace('.', '', $_POST['nono_price_table_qty'][$i])));
+			if( 0 == $index ) continue; // zero quantities are not allowed
+
+			$price = floatval(str_replace(',', '.', str_replace('.', '', $_POST['nono_price_table_price'][$i])));
+			$pricing[$index] = array(
+				'price' => $price,
+				'label'	=> stripslashes ( $_POST['nono_price_table_label'][$i] )
+			);
+		}
+		ksort($pricing, SORT_NUMERIC);
+		update_post_meta($post_id, self::$pricing_table_key, $pricing);
+kickout('save_pricing_info', $_POST, $post_id, $sorted_pricing);
+
+		return;
 
 		if( false === $index ) return;
 
