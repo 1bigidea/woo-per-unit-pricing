@@ -6,6 +6,20 @@
 #nono-pricing-table-edit {}
 	#nono-pricing-table-edit thead td {
 		font-weight: bold;
+		width: 15%;
+	}
+
+	#nono-pricing-table-edit thead td.price-label{
+		width: 20%;
+	}
+
+	#nono-pricing-table-edit td {
+		text-align: center;
+		vertical-align: top;
+	}
+
+	#nono-pricing-table-edit input {
+		width: 80%;
 	}
 
 	#nono-pricing-table-edit .value-field {

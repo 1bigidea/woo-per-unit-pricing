@@ -31,32 +31,21 @@ class NonoPrintPricingShortcodes {
 		extract( shortcode_atts(array('id' => 0, 'price_levels' => "50,100,250,500,1000"), $atts) );
 
 		if( 0 == $id ) {
-			$id = $product->id;
+			$the_product = $product;
+		} else {
+			$the_product = get_product($id);
 		}
 		$rows = explode(',', $price_levels);
 
-		$prices = get_post_meta($id, NonoPrintPricing::$pricing_table_key, true);
-		ksort($prices, SORT_NUMERIC);
-
 		$output = '<table class="price-table">';
 		$output .= sprintf('<thead><th>%s</th><th>%s</th></thead>', __('Qty', 'nono-per-unit'), __('Price', 'nono-per-unit'));
-		foreach( $rows as $row ){
+		foreach( $rows as $qty ){
 			$row_text = '<tr><td class="price-table-qty">%d</td><td class="price-table-amount">%s</td></tr>';
-			$output .= sprintf($row_text, (int) $row, number_format(self::determine_price($row, $prices), 2, ',', '.') );
+			$output .= sprintf($row_text, (int) $qty, number_format(NonoPrintPricing::determine_price($the_product, $qty), 2, ',', '.') );
 		}
 		$output .= '</table>';
 
 		return $output;
-	}
-
-	function determine_price($qty, $prices){
-		$pricing = 0;
-		foreach($prices as $min => $details ){
-			if( $qty >= $min ) {
-				$pricing = (($min * $details['price']) + ( ($qty - $min) * $details['price'] ));
-			}
-		}
-		return $pricing;
 	}
 }
 new NonoPrintPricingShortcodes;

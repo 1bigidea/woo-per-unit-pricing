@@ -77,30 +77,41 @@ class NonoPrintPricing {
 		include_once('inc/class.printing_product.php');
 
 		add_filter('woocommerce_product_class', array($this, 'initiate_product'), 10, 4);
+
+		if( ! is_admin() ){
+			add_action('wp_enqueue_scripts', array($this, 'front_enqueue') );
+		}
 	}
+
+	function front_enqueue(){
+		wp_enqueue_script('non-per-unit-js', plugins_url('/js/nono-per-unit.js', __FILE__), array('jquery') );
+
+		// http://josscrowcroft.github.com/accounting.js/
+		wp_enqueue_script('accounting', plugins_url('/js/accounting.min.js', __FILE__) );
+	}
+
 	function initiate_product($classname, $product_type, $post_type, $product_id){
 kickout('initiate_product', $classname, $product_type, $post_type, $product_id, FILE_APPEND);
 
-		switch($classname){
-			case 'WC_Product_Variable':
-				return 'NONO_Product_Variable';
-			case 'WC_Product_Variation':
-				return 'NONO_Product_Variation';
-		}
+// 		switch($classname){
+// 			case 'WC_Product_Variable':
+// 				return 'NONO_Product_Variable';
+// 			case 'WC_Product_Variation':
+// 				return 'NONO_Product_Variation';
+// 		}
 
 		return $classname;
 	}
 
+	/**
+	 *	Administrative Details
+	 */
 	function admin_init(){
-		add_action('woocommerce_product_write_panel_tabs', array($this, 'add_panel') );
-		add_action('woocommerce_product_write_panels', array($this, 'show_panel'));
+		include_once('inc/class.admin_product.php');
 
-//		add_action('woocommerce_product_after_variable_attributes', array($this, 'variation_admin'), 10, 3);
-		add_action('woocommerce_process_product_meta_variable', array($this, 'save_pricing_info'), 10 ,1);
-
-		add_action('admin_enqueue_scripts', array($this, 'enqueue') );
+		add_action('admin_enqueue_scripts', array($this, 'admin_enqueue') );
 	}
-	function enqueue($hook){
+	function admin_enqueue($hook){
 		global $post;
 
 		if( ! in_array($hook, array('post-new.php', 'post.php')) || 'product' != $post->post_type ) return;
@@ -109,100 +120,25 @@ kickout('initiate_product', $classname, $product_type, $post_type, $product_id, 
 		wp_enqueue_style('nono-per-unit', plugins_url('woo-per-unit-pricing.css', __FILE__) );
 	}
 	/**
-	 *	Insert Custom Write Panel in Woo Product Editor
+	 *	Use product to lookup and return the price at a given qty
 	 */
-	function add_panel(){
-		printf('<li class="nono-price-panel nono-pricing-option"><a href="#nono_price_panel">%s</a></li>', __( 'Price Tables', 'nono-per-unit' ) );
-	}
-	function show_panel(){
-		global $post;
 
-		$prices = get_post_meta($post->ID, self::$pricing_table_key, true);
-		if( empty($prices) ){
-			$prices = array(
-				'empty1' => array('price' => '', 'label' => 'Digital'),
-				'empty2' => array('price' => '', 'label' => 'Offset')
-			);
+	function determine_price($the_product, $qty){
+
+		if( $the_product->post_parent != 0 ){
+			$the_product = get_product($the_product->post_parent);
 		}
 
-		echo '<div id="nono_price_panel" class="panel woocommerce_options_panel">';
+		$prices = get_post_meta($the_product->id, NonoPrintPricing::$pricing_table_key, true);
+		ksort($prices, SORT_NUMERIC);
 
-			echo '<div class="options_group nono-price-table">';
-				echo '<table id="nono-pricing-table-edit">';
-					printf('<thead><td>%s</td><td>%s</td><td>%s</td><td>&nbsp;</td></thead>',
-						__('Min Qty', 'nono-per-unit'),
-						__('Price Each', 'nono-per-unit'),
-						__('Label', 'nono-per-unit')
-					);
-					foreach( $prices as $min => $price_row){
-						// handle the case where pricing hasn't been set yet (new products etc.)
-						if(is_nan($min)){
-							$min = 0;
-						}
-
-						echo '<tr>';
-						printf('<td><input type="text" class="value-field" value="%d" size="8"  name="nono_price_table_qty[]"></td>', $min);
-						printf('<td><input type="text" class="value-field" value="%s" size="10" name="nono_price_table_price[]"></td>', number_format ( $price_row['price'], 2, ',', '.') );
-						printf('<td><input type="text" value="%s" size="20" name="nono_price_table_label[]"></td>', $price_row['label']);
-						echo '<td><a href="#" class="add-row action-icon" /><a href="#" class="delete-row action-icon" /></td>';
-						echo '</tr>';
-					}
-				echo '</table>';
-			echo '</div>';
-		echo '</div>';
-	}
-
-
-	function save_pricing_info($post_id){
-
-		if( !isset($_POST) ||  !isset($_POST['nono_price_table_qty']) ) return; // Not a Variable product with pricing table
-		$pricing = array();
-		for( $i=0;$i<count($_POST['nono_price_table_qty']);$i++ ){
-			$index = absint(str_replace(',', '.', str_replace('.', '', $_POST['nono_price_table_qty'][$i])));
-			if( 0 == $index ) continue; // zero quantities are not allowed
-
-			$price = floatval(str_replace(',', '.', str_replace('.', '', $_POST['nono_price_table_price'][$i])));
-			$pricing[$index] = array(
-				'price' => $price,
-				'label'	=> stripslashes ( $_POST['nono_price_table_label'][$i] )
-			);
+		$pricing = 0;
+		foreach($prices as $min => $details ){
+			if( $qty >= $min ) {
+				$pricing = ($min * $details['price']) + ( ($qty - $min) * $details['addl'] );
+			}
 		}
-		ksort($pricing, SORT_NUMERIC);
-		update_post_meta($post_id, self::$pricing_table_key, $pricing);
-kickout('save_pricing_info', $_POST, $post_id, $sorted_pricing);
-
-		return;
-
-		if( false === $index ) return;
-
-		update_post_meta($variation_id, $this->min_order_key, absint($_POST['variable_min_qty'][$index]) );
-		update_post_meta($variation_id, $this->price_per_piece_key, (float) $_POST['variable_per_piece_price'][$index]);
-	}
-}
-
-if ( ! class_exists( 'Autoload_WP' ) ) {
-	/**
-	 * Generic autoloader for classes named in WordPress coding style.
-	 */
-	class Autoload_WP {
-
-		public $dir = __DIR__;
-
-		function __construct( $dir = '' ) {
-
-			if ( ! empty( $dir ) )
-				$this->dir = $dir;
-
-			spl_autoload_register( array( $this, 'spl_autoload_register' ) );
-		}
-
-		function spl_autoload_register( $class_name ) {
-
-			$class_path = $this->dir . '/class-' . strtolower( str_replace( '_', '-', $class_name ) ) . '.php';
-
-			if ( file_exists( $class_path ) )
-				include $class_path;
-		}
+		return $pricing;
 	}
 }
 new NonoPrintPricing();
