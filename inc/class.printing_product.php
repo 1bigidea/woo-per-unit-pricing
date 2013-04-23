@@ -23,7 +23,7 @@ class NONO_Product_Variable extends WC_Product_Variable {
 	}
 
 	function set_min_quantities($args, $product){
-kickout('set_min_quantities_variable', $args, $product);
+
 		$args['input_value'] = $args['min_value']	= $this->min_order_qty;
 
 		return $args;
@@ -49,7 +49,7 @@ class NONO_Product_Variation extends WC_Product_Variation {
 	}
 
 	function set_min_quantities($args, $product){
-kickout('set_min_quantities_variation', $args, $product);
+
 		$args['input_value'] = $args['min_value'] = $this->min_order_qty;
 
 		return $args;

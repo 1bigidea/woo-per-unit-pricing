@@ -107,7 +107,7 @@ class NonoPrintPricing {
 	}
 
 	function initiate_product($classname, $product_type, $post_type, $product_id){
-kickout('initiate_product', $classname, $product_type, $post_type, $product_id, FILE_APPEND);
+//kickout('initiate_product', $classname, $product_type, $post_type, $product_id, FILE_APPEND);
 
 // 		switch($classname){
 // 			case 'WC_Product_Variable':
@@ -147,7 +147,6 @@ kickout('initiate_product', $classname, $product_type, $post_type, $product_id, 
 
 			if( !($date_from <= time() && time() <= $date_to) ) // Product not on sale (per schedule)
 				return '';
-kickout('determine_price', time(), $date_from, $date_to);
 		}
 
 		$bulk_pricing = get_post_meta($the_product->id, NonoPrintPricing::$pricing_table_key, true);

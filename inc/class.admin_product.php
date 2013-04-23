@@ -197,8 +197,6 @@ class Nono_ProductAdmin {
 		update_post_meta( $post_id, '_tax_status', stripslashes( $_POST['_tax_status_bulk'] ) );
 		update_post_meta( $post_id, '_tax_class', stripslashes( $_POST['_tax_class_bulk'] ) );
 
-kickout('save_pricing_info', $_POST, $post_id, $per_unit_table, $date_from, $date_to);
-
 		return;
 	}
 
