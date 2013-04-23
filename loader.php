@@ -70,6 +70,9 @@ class NonoPrintPricing {
 	 *	Functions below actually do the work
 	 */
 	function init(){
+
+		if( ! $this->check_for_woocommerce() ) return false;
+
 		// load localization strings
 		load_plugin_textdomain('nono-per-unit', FALSE, plugin_basename(__FILE__).'/localization');
 
@@ -81,6 +84,19 @@ class NonoPrintPricing {
 		if( ! is_admin() ){
 			add_action('wp_enqueue_scripts', array($this, 'front_enqueue') );
 		}
+
+	}
+
+	function check_for_woocommerce(){
+		$taxes = get_taxonomy('product_type');
+		if( false === $taxes ) return $taxes; // Nope - Looks like WooCommerce isn't installed
+
+		// Let's be sure that our product type is setup as a term
+		if( ! get_term_by( 'slug', sanitize_title( 'bulk' ), 'product_type' ) ){
+			wp_insert_term('bulk', 'product_type');
+		}
+
+		return true;
 	}
 
 	function front_enqueue(){
@@ -123,13 +139,19 @@ kickout('initiate_product', $classname, $product_type, $post_type, $product_id, 
 	 *	Use product to lookup and return the price at a given qty
 	 */
 
-	function determine_price($the_product, $qty){
+	function determine_price($the_product, $qty, $price_level = 'regular'){
 
-		if( $the_product->post_parent != 0 ){
-			$the_product = get_product($the_product->post_parent);
+		if( 'sale' == $price_level ){
+			$date_from = get_post_meta($the_product->id, '_sale_price_dates_from', true);
+			$date_to   = get_post_meta($the_product->id, '_sale_price_dates_to', true);
+
+			if( !($date_from <= time() && time() <= $date_to) ) // Product not on sale (per schedule)
+				return '';
+kickout('determine_price', time(), $date_from, $date_to);
 		}
 
-		$prices = get_post_meta($the_product->id, NonoPrintPricing::$pricing_table_key, true);
+		$bulk_pricing = get_post_meta($the_product->id, NonoPrintPricing::$pricing_table_key, true);
+		$prices = $bulk_pricing[$price_level];
 		ksort($prices, SORT_NUMERIC);
 
 		$pricing = 0;
@@ -138,6 +160,10 @@ kickout('initiate_product', $classname, $product_type, $post_type, $product_id, 
 				$pricing = ($min * $details['price']) + ( ($qty - $min) * $details['addl'] );
 			}
 		}
+		if( 0 == $pricing && 'sale' == $price_level ) {
+			return '';
+		}
+
 		return $pricing;
 	}
 }

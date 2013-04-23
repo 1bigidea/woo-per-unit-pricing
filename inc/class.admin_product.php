@@ -6,14 +6,22 @@ class Nono_ProductAdmin {
 		add_action('woocommerce_product_write_panel_tabs', array($this, 'add_panel') );
 		add_action('woocommerce_product_write_panels', array($this, 'show_panel'));
 
-		add_action('woocommerce_process_product_meta_simple', array($this, 'save_pricing_info'), 10 ,1);
+		add_action('woocommerce_process_product_meta_bulk', array($this, 'save_pricing_info'), 10 ,1);
+
+		add_filter('product_type_selector', array($this, 'modify_product_selector') );
+	}
+
+	function modify_product_selector($product_selections){
+		$product_selections['bulk'] = __('Bulk Priced product', 'nono-per-unit');
+
+		return $product_selections;
 	}
 
 	/**
 	 *	Insert Custom Write Panel in Woo Product Editor
 	 */
 	function add_panel(){
-		printf('<li class="nono-price-panel nono-pricing-option"><a href="#nono_price_panel">%s</a></li>', __( 'Price Tables', 'nono-per-unit' ) );
+		printf('<li class="nono-price-panel nono-pricing-option hide_if_grouped show_if_bulk hide_if_virtual hide_if_external hide_if_simple hide_if_variable"><a href="#nono_price_panel">%s</a></li>', __( 'Price Tables', 'nono-per-unit' ) );
 	}
 	function show_panel(){
 		global $post;
@@ -21,7 +29,6 @@ class Nono_ProductAdmin {
 		$prices = get_post_meta($post->ID, NonoPrintPricing::$pricing_table_key, true);
 		if( empty($prices) ){
 			$prices = array(
-				'enabled' => false,
 				'enabled_sale' => false,
 				'regular' => array(
 					'empty1' => array('price' => '', 'label' => 'Digital'),
@@ -31,48 +38,41 @@ class Nono_ProductAdmin {
 					'empty1' => array('price' => '', 'label' => 'Digital'),
 					'empty2' => array('price' => '', 'label' => 'Offset')
 				),
-				'sale_dates' => array( 'from' => '', 'thru' => '')
 			);
 		}
 
-		$show_per_unit = ($prices['enabled'] ) ? "visible" : "none";
-		$show_sales    = ($prices['enabled_sale']) ? "visible" : "none";
+		$show_sales = ($prices['enabled_sale']) ? "visible" : "none";
 
 		echo '<div id="nono_price_panel" class="panel woocommerce_options_panel">';
 
 			echo '<div class="options_group nono-price-table">';
 
-				echo '<div class="options_group">';
-					echo '<p class="form-field">';
-						echo '<label for="enable-per-unit-pricing">';
-						_e('Enable Per Unit Pricing', 'nono-per-unit');
-						echo '</label>';
-					printf('<input type="checkbox" class="checkbox" id="enable-per-unit-pricing" name="enable_per_unit_pricing" value="1" %s /><span class="description">%s</span>', checked($prices['enabled'], '1', false), __('Use Qty-based Pricing', 'nono-per-unit') );
-					echo '</p>';
-
-				echo '</div>';
-
 				//	On Sale Fields
-				printf ('<div class="options_group enable-per-unit-pricing" style="visibility:%s;">', $show_per_unit);
+				echo '<div class="options_group enable-per-unit-pricing" >';
 					echo '<p class="form-field">';
 						echo '<label for="enable-sales-pricing">';
 						_e('Show Sale Pricing', 'nono-per-unit');
 						echo '</label>';
 					printf('<input type="checkbox" class="checkbox" id="enable-sales-pricing" name="per_unit_on_sale" value="1" %s /><span class="description">%s</span>', checked($prices['enabled_sale'], '1', false), '' );
+					printf('<a href="#" class="sale_schedule">%s</a>', __( 'Schedule', 'woocommerce' ));
 					echo '</p>';
-					printf('<div class="on-sale" style="visibility:%s;">', $show_sales);
-						echo '<p class="form-field sale_price_dates_fields">';
+
+					// Special Price date range
+					$sale_price_dates_from 	= ( $date = get_post_meta( $post->ID, '_sale_price_dates_from', true ) ) ? date_i18n( 'Y-m-d', $date ) : '';
+					$sale_price_dates_to 	= ( $date = get_post_meta( $post->ID, '_sale_price_dates_to', true ) ) ? date_i18n( 'Y-m-d', $date ) : '';
+
+					echo '<p class="form-field sale_price_dates_fields" class="on-sale" style="display:none;">';
 						echo '<label for="sales-pricing-from">';
 						_e('Sale Price Dates:', 'nono-per-unit');
 						echo '</label>';
-						printf('<input type="text" class="short sale_price_dates_from" name="per_unit_sales_pricing_from" id="per-unit-sales-pricing-from" value="%s" maxlength="10" pattern="[0-9]{4}-(0[1-9]|1[012])-(0[1-9]|1[0-9]|2[0-9]|3[01])" />', $prices['sale_dates']['from']);
+						printf('<input type="text" class="short sale_price_dates_from" name="per_unit_sales_pricing_from" id="per-unit-sales-pricing-from" value="%s" maxlength="10" pattern="[0-9]{4}-(0[1-9]|1[012])-(0[1-9]|1[0-9]|2[0-9]|3[01])" />', $sale_price_dates_from);
+						printf('<input type="text" class="short" name="per_unit_sales_pricing_thru" id="per-unit-sales-pricing-thru" value="%s" maxlength="10" pattern="[0-9]{4}-(0[1-9]|1[012])-(0[1-9]|1[0-9]|2[0-9]|3[01])" />', $sale_price_dates_to);
+						printf('<a href="#" class="cancel_sale_schedule">%s</a></label>', __( 'Cancel', 'woocommerce' ));
+					echo '</p>';
 
-						printf('<input type="text" class="short" name="per_unit_sales_pricing_thru" id="per-unit-sales-pricing-thru" value="%s" maxlength="10" pattern="[0-9]{4}-(0[1-9]|1[012])-(0[1-9]|1[0-9]|2[0-9]|3[01])" />', $prices['sale_dates']['thru']);
-						echo '</p>';
-					echo '</div>';
 				echo '</div>';
 				// Show Pricing Table
-				printf ('<div class="options_group enable-per-unit-pricing" style="visbility:%s;">', $show_per_unit);
+				echo '<div class="options_group enable-per-unit-pricing">';
 					echo '<table id="nono-pricing-table-edit">';
 						printf('<thead><td class="price-min">%s</td><td class="price-each">%s</td><td class="price-addl">%s</td><td class="price-label">%s</td><td class="price-row-action">&nbsp;</td></thead>',
 							__('Min Qty', 'nono-per-unit'),
@@ -104,21 +104,42 @@ class Nono_ProductAdmin {
 					echo '</table>';
 				echo '</div>';
 			echo '</div>';
+
+			if ( get_option( 'woocommerce_calc_taxes' ) == 'yes' ) {
+
+				echo '<div class="options_group show_if_bulk">';
+
+					// Tax
+					woocommerce_wp_select( array( 'id' => '_tax_status_bulk', 'label' => __( 'Tax Status', 'woocommerce' ), 'options' => array(
+						'taxable' 	=> __( 'Taxable', 'woocommerce' ),
+						'shipping' 	=> __( 'Shipping only', 'woocommerce' ),
+						'none' 		=> __( 'None', 'woocommerce' )
+					) ) );
+
+					$tax_classes = array_filter( array_map( 'trim', explode( "\n", get_option( 'woocommerce_tax_classes' ) ) ) );
+					$classes_options = array();
+					$classes_options[''] = __( 'Standard', 'woocommerce' );
+		    		if ( $tax_classes )
+		    			foreach ( $tax_classes as $class )
+		    				$classes_options[ sanitize_title( $class ) ] = esc_html( $class );
+
+					woocommerce_wp_select( array( 'id' => '_tax_class_bulk', 'label' => __( 'Tax Class', 'woocommerce' ), 'options' => $classes_options ) );
+
+					do_action( 'woocommerce_product_options_tax' );
+
+				echo '</div>';
+
+			}
+
 		echo '</div>';
 	}
 
 
 	function save_pricing_info($post_id){
 
-		if( !isset($_POST) || !isset($_POST['nono_price_table_qty']) ) return; // Not a Variable product with pricing table
-		if( !isset($_POST['enable_per_unit_pricing']) ) { // Per-unit pricing is unchecked
-			$per_unit_table = get_post_meta($post_id, NonoPrintPricing::$pricing_table_key, true);
-			if( is_array($per_unit_table) ){ // There is something stored here
-				$per_unit_table['enabled'] = false;
-				update_post_meta($post_id, NonoPrintPricing::$pricing_table_key, $per_unit_table);
-			}
-			return;
-		}
+		if( !isset($_POST) || !isset($_POST['nono_price_table_qty']) ) return; // Not a Bulk product with pricing table
+
+		$product_type = wp_get_object_terms($post_id, 'product_type', 'names');
 
 		$pricing = $sales_pricing = array();
 		for( $i=0;$i<count($_POST['nono_price_table_qty']);$i++ ){
@@ -143,25 +164,40 @@ class Nono_ProductAdmin {
 		ksort($pricing, SORT_NUMERIC);
 		ksort($sales_pricing, SORT_NUMERIC);
 
-		$eff_date = $thru_date = '';
-		$on_sale = (isset($_POST['per_unit_on_sale']) ) ? true : false;
-		$eff_date  = date('Y-m-d', strtotime($_POST['per_unit_sales_pricing_from']) ); // sanitize date fields
-		$thru_date = date('Y-m-d', strtotime($_POST['per_unit_sales_pricing_thru']) );
+		$date_from = !empty($_POST['per_unit_sales_pricing_from']) ? date('Y-m-d', strtotime($_POST['per_unit_sales_pricing_from']) ) : '';
+		$date_to   = !empty($_POST['per_unit_sales_pricing_thru']) ? date('Y-m-d', strtotime($_POST['per_unit_sales_pricing_thru']) ) : '';
+
+		// Dates
+		if ( $date_from )
+			update_post_meta( $post_id, '_sale_price_dates_from', strtotime( $date_from ) );
+		else
+			update_post_meta( $post_id, '_sale_price_dates_from', '' );
+
+		if ( $date_to )
+			update_post_meta( $post_id, '_sale_price_dates_to', strtotime( $date_to ) );
+		else
+			update_post_meta( $post_id, '_sale_price_dates_to', '' );
+
+		if ( $date_to && ! $date_from )
+			update_post_meta( $post_id, '_sale_price_dates_from', strtotime( 'NOW', current_time( 'timestamp' ) ) );
+
+		if ( $date_to && strtotime( $date_to ) < strtotime( 'NOW', current_time( 'timestamp' ) ) ) {
+			update_post_meta( $post_id, '_sale_price_dates_from', '');
+			update_post_meta( $post_id, '_sale_price_dates_to', '');
+		}
+
 
 		$per_unit_table = array(
-			'enabled'	=> true,
-			'enabled_sale' => $on_sale,
+			'enabled_sale' => !empty($_POST['per_unit_on_sale']),
 			'regular'	=> $pricing,
 			'sale'		=> $sales_pricing,
-			'sale_dates'=> array(
-				'from'	=> $eff_date,
-				'thru'	=> $thru_date
-			)
 		);
+		update_post_meta( $post_id, NonoPrintPricing::$pricing_table_key, $per_unit_table );
 
+		update_post_meta( $post_id, '_tax_status', stripslashes( $_POST['_tax_status_bulk'] ) );
+		update_post_meta( $post_id, '_tax_class', stripslashes( $_POST['_tax_class_bulk'] ) );
 
-		update_post_meta($post_id, NonoPrintPricing::$pricing_table_key, $per_unit_table);
-kickout('save_pricing_info', $_POST, $post_id, $per_unit_table);
+kickout('save_pricing_info', $_POST, $post_id, $per_unit_table, $date_from, $date_to);
 
 		return;
 	}

@@ -9,7 +9,6 @@ class NonoPrintPricingShortcodes {
 	function __construct() {
 
 		add_shortcode('pricetable', array($this, 'pricetable'));
-
 	}
 	static function this(){
 		// enables external management of filters/actions
@@ -28,20 +27,32 @@ class NonoPrintPricingShortcodes {
 	function pricetable($atts){
 		global $woocommerce, $product;
 
-		extract( shortcode_atts(array('id' => 0, 'price_levels' => "50,100,250,500,1000"), $atts) );
+		extract( shortcode_atts( array('id' => 0, 'price_levels' => "50,100,250,500,1000"), $atts) );
 
 		if( 0 == $id ) {
 			$the_product = $product;
 		} else {
 			$the_product = get_product($id);
 		}
+
+		$product_type = wp_get_object_terms($the_product->id, 'product_type', array('fields' => 'names'));
+		if( ! in_array('bulk', $product_type) ) return ''; // Not a bulk product so no output
+
 		$rows = explode(',', $price_levels);
 
 		$output = '<table class="price-table">';
 		$output .= sprintf('<thead><th>%s</th><th>%s</th></thead>', __('Qty', 'nono-per-unit'), __('Price', 'nono-per-unit'));
 		foreach( $rows as $qty ){
-			$row_text = '<tr><td class="price-table-qty">%d</td><td class="price-table-amount">%s</td></tr>';
-			$output .= sprintf($row_text, (int) $qty, number_format(NonoPrintPricing::determine_price($the_product, $qty), 2, ',', '.') );
+			$reg_price = NonoPrintPricing::determine_price($the_product, $qty);
+			$reg_price_formatted = woocommerce_price($reg_price, array());
+			$sale_price = NonoPrintPricing::determine_price($the_product, $qty, 'sale');
+			if( !empty($sale_price) ){
+				$reg_price_formatted = '<del>'.$reg_price_formatted.'</del>';
+				$sale_price = woocommerce_price($sale_price, array());
+			}
+
+			$row_text = '<tr><td class="price-table-qty">%d</td><td class="price-table-amount">%s %s</td></tr>';
+			$output .= sprintf($row_text, (int) $qty, $reg_price_formatted, $sale_price );
 		}
 		$output .= '</table>';
 
