@@ -31,17 +31,17 @@ class Nono_ProductAdmin {
 			$prices = array(
 				'enabled_sale' => false,
 				'regular' => array(
-					'empty1' => array('price' => '', 'label' => 'Digital'),
-					'empty2' => array('price' => '', 'label' => 'Offset')
+					'empty1' => array('price' => '', 'label' => __('Digital', 'nono-per-unit')),
+					'empty2' => array('price' => '', 'label' => __('Offset', 'nono-per-unit'))
 				),
 				'sale' => array(
-					'empty1' => array('price' => '', 'label' => 'Digital'),
-					'empty2' => array('price' => '', 'label' => 'Offset')
+					'empty1' => array('price' => '', 'label' => __('Digital', 'nono-per-unit')),
+					'empty2' => array('price' => '', 'label' => __('Offset', 'nono-per-unit'))
 				),
 			);
 		}
 
-		$show_sales = ($prices['enabled_sale']) ? "visible" : "none";
+		$show_sales = ($prices['enabled_sale']) ? "table-row" : "none";
 
 		echo '<div id="nono_price_panel" class="panel woocommerce_options_panel">';
 
@@ -94,7 +94,7 @@ class Nono_ProductAdmin {
 							echo '<td><a href="#" class="add-row action-icon" /><a href="#" class="delete-row action-icon" /></td>';
 							echo '</tr>';
 
-							printf('<tr class="on-sale" style="visbility:%s;">', $show_sales) ;
+							printf('<tr class="on-sale" style="display:%s;">', $show_sales) ;
 							printf('<td>%s</td>', __('Sale Prices', 'nono-per-unit'));
 							printf('<td><input type="text" class="value-field" value="%s" size="10" name="nono_price_table_saleprice[]"></td>', number_format ( $prices['sale'][$min]['price'], 2, ',', '.') );
 							printf('<td><input type="text" class="value-field" value="%s" size="10" name="nono_price_table_saleaddl[]"></td>', number_format ( $prices['sale'][$min]['addl'], 2, ',', '.') );
