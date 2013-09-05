@@ -1,4 +1,5 @@
 jQuery(function($){
+
 	$('form .quantity .qty').on('change', function(){
 		qty = $(this).val();
 
@@ -41,6 +42,7 @@ jQuery(function($){
 		//$variation_form.find('.single_variation').html( variation.price_html + variation.availability_html );
 	});
 });
+
 var price_index = function(qty, break_points){
 
 	index = break_points[0];
@@ -49,3 +51,20 @@ var price_index = function(qty, break_points){
 	}
 	return index;
 };
+
+var qty_breaks = Object.keys(nono_bulk_prices).sort(function(a, b) {
+    return b - a; // force numerical ascending
+});
+
+var nono_price_lookup = function(qty){
+
+    for(i=0;i<qty_breaks.length;i++){
+        if( qty >= parseInt(qty_breaks[i]) ){
+            the_price = nono_bulk_prices[qty_breaks[i]];
+
+            price = ( parseInt(qty_breaks[i]) * the_price['price'] ) + ( (qty - parseInt(qty_breaks[i])) * the_price['addl'] );
+
+            return price.toFixed(2);
+        }
+    }
+}

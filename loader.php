@@ -74,7 +74,7 @@ class NonoPrintPricing {
 		if( ! $this->check_for_woocommerce() ) return false;
 
 		// load localization strings
-		load_plugin_textdomain('nono-per-unit', FALSE, plugin_basename(__FILE__).'/localization');
+		load_plugin_textdomain('nono-per-unit', FALSE, plugin_basename(__FILE__).'/languages');
 
 		include_once('inc/class.shortcodes.php');
 		include_once('inc/class.printing_product.php');
@@ -100,10 +100,25 @@ class NonoPrintPricing {
 	}
 
 	function front_enqueue(){
-		wp_enqueue_script('non-per-unit-js', plugins_url('/js/nono-per-unit.js', __FILE__), array('jquery') );
+
+		wp_enqueue_script('nono-per-unit-js', plugins_url('/js/nono-per-unit.js', __FILE__), array('jquery') );
 
 		// http://josscrowcroft.github.com/accounting.js/
 		wp_enqueue_script('accounting', plugins_url('/js/accounting.min.js', __FILE__) );
+
+		// this is a product page
+		if ( is_singular('product') ){
+			$product = get_queried_object();
+			$product_type = wp_get_object_terms($product->ID, array('product_type') );
+			$types = wp_list_pluck('slug', $product_type);
+
+			if( $this->is_bulk_product($product) ){
+				$pricing = $this->get_current_pricing($product);
+
+				wp_localize_script('nono-per-unit-js', 'nono_bulk_prices', $pricing);
+			}
+kickout('product', $product_type, $product);
+		}
 	}
 
 	function initiate_product($classname, $product_type, $post_type, $product_id){
@@ -153,17 +168,97 @@ class NonoPrintPricing {
 		$prices = $bulk_pricing[$price_level];
 		ksort($prices, SORT_NUMERIC);
 
+		// Check that the qty requested is within the range of prices
+		$quantities = array_keys($prices);
+		if( $qty < $quantities[0] ) return false;
+
 		$pricing = 0;
 		foreach($prices as $min => $details ){
 			if( $qty >= $min ) {
 				$pricing = ($min * $details['price']) + ( ($qty - $min) * $details['addl'] );
 			}
 		}
+
 		if( 0 == $pricing && 'sale' == $price_level ) {
 			return '';
 		}
 
 		return $pricing;
 	}
+
+	/**
+	 *  Utility Functions
+	 */
+	function get_current_pricing($id){
+
+		if ( is_object($id) ) $id = $id->ID;
+
+		$bulk_pricing = get_post_meta($id, NonoPrintPricing::$pricing_table_key, true);
+		/** keys
+		 * bool     enabled_sale
+		 * array    regular
+		 * array    sale
+		 */
+
+		// Special Price date range
+		$sale_price_dates_from 	= get_post_meta( $post->ID, '_sale_price_dates_from', true );
+		$sale_price_dates_to 	= get_post_meta( $post->ID, '_sale_price_dates_to', true );
+
+		$prices = $bulk_pricing['regular'];
+		ksort($prices, SORT_NUMERIC);
+
+		return $prices;
+	}
+
+
+	function is_bulk_product($id=0){
+
+		if ( is_object($id) ){
+			if( isset($id->ID) ) {
+				$id = $id->ID;
+			} elseif ( isset($id->id) ){
+				$id = $id->id;
+			}
+		}
+
+		if ( is_array($id) ) {
+			if ( isset($id['id']) ){
+				$id = $id['id'];
+			}elseif ( isset($id['ID']) ){
+				$id = $id['ID'];
+			}
+		}
+
+		$product_type = wp_get_object_terms($id, 'product_type', array('fields' => 'names'));
+		if( ! in_array('bulk', $product_type) ) return false; // Not a bulk product so no output
+
+		return true;
+	}
+
+	function is_on_sale($id=0){
+
+		if ( is_object($id) ) $id = $id->ID;
+
+		$date_from = get_post_meta($id, '_sale_price_dates_from', true);
+		$date_to   = get_post_meta($id, '_sale_price_dates_to', true);
+
+		if( !($date_from <= time() && time() <= $date_to) ) // Product not on sale (per schedule)
+		return '';
+	}
+
 }
 new NonoPrintPricing();
+
+	function temp_debuga($validates, $product_id, $quantity){
+		kickout('add-to-cart_validates', $validates, $product_id, $quantity, $_REQUEST, FILE_APPEND);
+
+		return $validates;
+	}
+	add_filter('woocommerce_add_to_cart_validation', 'temp_debuga', 10, 3);
+
+function temp_debug($cart_item_data, $product_id, $variation_id){
+kickout('add-to-cart', $cart_item_data, $product_id, $variation_id, $_REQUEST, FILE_APPEND);
+
+	return $cart_item_data;
+}
+add_filter('woocommerce_add_cart_item_data', 'temp_debug', 10, 3);

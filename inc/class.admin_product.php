@@ -31,12 +31,12 @@ class Nono_ProductAdmin {
 			$prices = array(
 				'enabled_sale' => false,
 				'regular' => array(
-					'empty1' => array('price' => '', 'label' => __('Digital', 'nono-per-unit')),
-					'empty2' => array('price' => '', 'label' => __('Offset', 'nono-per-unit'))
+					'empty1' => array('price' => '0.0', 'label' => __('Digital', 'nono-per-unit')),
+					'empty2' => array('price' => '0.0', 'label' => __('Offset', 'nono-per-unit'))
 				),
 				'sale' => array(
-					'empty1' => array('price' => '', 'label' => __('Digital', 'nono-per-unit')),
-					'empty2' => array('price' => '', 'label' => __('Offset', 'nono-per-unit'))
+					'empty1' => array('price' => '0.0', 'label' => __('Digital', 'nono-per-unit')),
+					'empty2' => array('price' => '0.0', 'label' => __('Offset', 'nono-per-unit'))
 				),
 			);
 		}
@@ -80,9 +80,10 @@ class Nono_ProductAdmin {
 							__('Price Add&rsquo;l', 'nono-per-unit'),
 							__('Label', 'nono-per-unit')
 						);
+
 						foreach( $prices['regular'] as $min => $price_row){
 							// handle the case where pricing hasn't been set yet (new products etc.)
-							if( ! is_numeric( $min ) ){
+							if( empty( $min ) ){
 								$min = 0;
 							}
 

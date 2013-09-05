@@ -35,8 +35,7 @@ class NonoPrintPricingShortcodes {
 			$the_product = get_product($id);
 		}
 
-		$product_type = wp_get_object_terms($the_product->id, 'product_type', array('fields' => 'names'));
-		if( ! in_array('bulk', $product_type) ) return ''; // Not a bulk product so no output
+		if ( ! NonoPrintPricing::is_bulk_product($the_product->post) ) return '';
 
 		$rows = explode(',', $price_levels);
 
@@ -44,6 +43,8 @@ class NonoPrintPricingShortcodes {
 		$output .= sprintf('<thead><th>%s</th><th>%s</th></thead>', __('Qty', 'nono-per-unit'), __('Price', 'nono-per-unit'));
 		foreach( $rows as $qty ){
 			$reg_price = NonoPrintPricing::determine_price($the_product, $qty);
+			if( ! $reg_price ) continue; // this qty could be less than the pricing minimum quantity
+
 			$reg_price_formatted = woocommerce_price($reg_price, array());
 			$sale_price = NonoPrintPricing::determine_price($the_product, $qty, 'sale');
 			if( !empty($sale_price) ){
